@@ -1,4 +1,4 @@
-# Проект compilerNEW на C#
+# Проект CompkillerNEW07 на C#
 
 Проект предназначен для .NET 10 (C# 14): https://dotnet.microsoft.com/en-us/download/dotnet/10.0
 
@@ -7,15 +7,15 @@
 Клонирование без авторизации в SourceCraft:
 
 ```bash
-# Клонируем репозиторий в каталог compilerNEW/
-git clone https://github.com/krytoi812/compilerNEW.git compilerNEW
+# Клонируем репозиторий в каталог CompkillerNEW07/
+git clone https://github.com/krytoi812/CompkillerNEW07.git CompkillerNEW07
 ```
 
 Если у вас есть аккаунт SourceCraft и вы настроили SSH-ключи, то можно клонировать по SSH:
 
 ```bash
-# Клонируем репозиторий в каталог compiler/
-git clone git@github.com:krytoi812/compilerNEW.git compilerNEW
+# Клонируем репозиторий в каталог CompkillerNEW07/
+git clone git@github.com:krytoi812/CompkillerNEW07.git CompkillerNEW07
 ```
 
 ## Сборка

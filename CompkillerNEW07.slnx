@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Lexemes/Lexemes.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Lexemes.UnitTests/Lexemes.UnitTests.csproj" />
+  </Folder>
+</Solution>

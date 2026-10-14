@@ -1,21 +1,21 @@
-# Шаблон проекта на C# для студентов
+# Проект CompkillerNEW07 на C#
 
-Шаблон предназначен для .NET 10 (C# 14): https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+Проект предназначен для .NET 10 (C# 14): https://dotnet.microsoft.com/en-us/download/dotnet/10.0
 
 ## Клонирование проекта
 
 Клонирование без авторизации в SourceCraft:
 
 ```bash
-# Клонируем репозиторий в каталог compiler/
-git clone https://git@git.sourcecraft.dev/sshambir-public/compiler-template.git compiler
+# Клонируем репозиторий в каталог CompkillerNEW07/
+git clone https://github.com/krytoi812/CompkillerNEW07.git CompkillerNEW07
 ```
 
 Если у вас есть аккаунт SourceCraft и вы настроили SSH-ключи, то можно клонировать по SSH:
 
 ```bash
-# Клонируем репозиторий в каталог compiler/
-git clone ssh://ssh.sourcecraft.dev/sshambir-public/compiler-template.git compiler
+# Клонируем репозиторий в каталог CompkillerNEW07/
+git clone git@github.com:krytoi812/CompkillerNEW07.git CompkillerNEW07
 ```
 
 ## Сборка
@@ -81,7 +81,7 @@ git rm -r tests/ExampleLib.UnitTests/
 
 ## Статический анализ
 
-Шаблон содержит подключённые статические анализаторы:
+Проект содержит подключённые статические анализаторы:
 
 * Статические анализаторы подключены в файле `Directory.Build.props` — система сборки MSBuild воспринимает этот файл как общие параметры сборки всего проекта;
 * В корне проекта есть файл `.editorconfig` с настройками статических анализаторов

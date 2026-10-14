@@ -1,12 +1,13 @@
+using System.IO;
 using System.Text;
 
 namespace Lexemes;
 
 /// <summary>
 /// Лексический анализатор языка CompkillerNEW07.
-/// Читает исходный текст посимвольно слева направо: позиция чтения только
-/// увеличивается, распознавание многосимвольных лексем выполняется через
-/// предпросмотр символов вперёд.
+/// Загружает исходный текст в память и читает его посимвольно слева направо:
+/// позиция чтения только увеличивается, распознавание многосимвольных лексем
+/// выполняется через предпросмотр символов вперёд.
 /// </summary>
 public sealed class Lexer
 {
@@ -16,10 +17,6 @@ public sealed class Lexer
     private int _column = 1;
 
     /// <summary>
-    /// Зарезервированные слова языка в нижнем регистре: язык нечувствителен
-    /// к регистру, поэтому сравнение выполняется после приведения к нижнему регистру.
-    /// </summary>
-        /// <summary>
     /// Зарезервированные слова языка в нижнем регистре: язык нечувствителен
     /// к регистру, поэтому сравнение выполняется после приведения к нижнему регистру.
     /// </summary>
@@ -55,6 +52,16 @@ public sealed class Lexer
     }
 
     /// <summary>
+    /// Загружает исходный файл целиком в память и создаёт анализатор.
+    /// </summary>
+    /// <param name="path">Путь к исходному файлу.</param>
+    /// <returns>Анализатор загруженного текста.</returns>
+    public static Lexer FromFile(string path)
+    {
+        return new Lexer(File.ReadAllText(path));
+    }
+
+    /// <summary>
     /// Разбирает весь исходный текст и возвращает список лексем,
     /// завершающийся лексемой конца файла.
     /// </summary>
@@ -87,7 +94,7 @@ public sealed class Lexer
         }
 
         char current = Peek(0);
-        if (char.IsDigit(current))
+        if (char.IsAsciiDigit(current))
         {
             return ReadNumber();
         }
@@ -135,7 +142,7 @@ public sealed class Lexer
             _line += 1;
             _column = 1;
         }
-        else
+        else if (current != '\r')
         {
             _column += 1;
         }
@@ -144,7 +151,8 @@ public sealed class Lexer
     }
 
     /// <summary>
-    /// Пропускает пробельные символы и комментарии обоих видов.
+    /// Пропускает пробельные символы (все, для которых char.IsWhiteSpace
+    /// возвращает true) и комментарии обоих видов.
     /// </summary>
     private void SkipWhitespaceAndComments()
     {
@@ -192,8 +200,8 @@ public sealed class Lexer
     {
         int startLine = _line;
         int startColumn = _column;
-        Advance(); // Символ '/'.
-        Advance(); // Символ '*'.
+        Advance();
+        Advance();
         while (true)
         {
             if (_position >= _source.Length)
@@ -215,8 +223,9 @@ public sealed class Lexer
 
     /// <summary>
     /// Читает целочисленный или вещественный литерал.
-    /// Точка становится частью числа только если за ней следует цифра,
-    /// иначе точка останется отдельной лексемой-разделителем.
+    /// Для вещественного литерала с обеих сторон точки обязательна хотя бы одна цифра.
+    /// Записи вида ".5" и "3." не являются числовыми литералами и разбираются
+    /// как разделитель Dot и целое число. Ведущие нули разрешены.
     /// </summary>
     /// <returns>Лексема числового литерала.</returns>
     private Token ReadNumber()
@@ -224,16 +233,16 @@ public sealed class Lexer
         int startLine = _line;
         int startColumn = _column;
         StringBuilder builder = new StringBuilder();
-        while (char.IsDigit(Peek(0)))
+        while (char.IsAsciiDigit(Peek(0)))
         {
             builder.Append(Advance());
         }
 
         TokenType type = TokenType.IntegerLiteral;
-        if (Peek(0) == '.' && char.IsDigit(Peek(1)))
+        if (Peek(0) == '.' && char.IsAsciiDigit(Peek(1)))
         {
-            builder.Append(Advance()); // Точка.
-            while (char.IsDigit(Peek(0)))
+            builder.Append(Advance());
+            while (char.IsAsciiDigit(Peek(0)))
             {
                 builder.Append(Advance());
             }
@@ -245,8 +254,10 @@ public sealed class Lexer
     }
 
     /// <summary>
-    /// Читает строковый литерал в двойных кавычках, раскрывая управляющие
-    /// последовательности \\, \", \n и \t; неизвестная последовательность — ошибка.
+    /// Читает строковый литерал в двойных кавычках.
+    /// Разрешены ровно четыре управляющие последовательности: \\, \", \n, \t.
+    /// Остальные последовательности после \ считаются ошибкой.
+    /// Пустые строки и фактические переносы строк между кавычками разрешены.
     /// </summary>
     /// <returns>Лексема строкового литерала с расшифрованным содержимым.</returns>
     /// <exception cref="LexerException">Если строка не закрыта или экранирование неизвестно.</exception>
@@ -254,7 +265,7 @@ public sealed class Lexer
     {
         int startLine = _line;
         int startColumn = _column;
-        Advance(); // Открывающая кавычка.
+        Advance();
         StringBuilder builder = new StringBuilder();
         while (true)
         {

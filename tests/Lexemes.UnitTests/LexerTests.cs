@@ -1,3 +1,5 @@
+using System.IO;
+
 using Lexemes;
 using Xunit;
 
@@ -545,5 +547,85 @@ public sealed class LexerTests
         data.Add("\"a\\qb\"");
         data.Add("a /* незакрытый комментарий");
         return data;
+    }
+
+    [Fact]
+    public void Tokenize_DotFollowedByDigit_ReturnsDotAndIntegerSeparately()
+    {
+        Lexer lexer = new Lexer(".5");
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(3, tokens.Count);
+        Assert.Equal(TokenType.Dot, tokens[0].Type);
+        Assert.Equal(".", tokens[0].Value);
+        Assert.Equal(1, tokens[0].Line);
+        Assert.Equal(1, tokens[0].Column);
+        Assert.Equal(TokenType.IntegerLiteral, tokens[1].Type);
+        Assert.Equal("5", tokens[1].Value);
+        Assert.Equal(1, tokens[1].Line);
+        Assert.Equal(2, tokens[1].Column);
+        Assert.Equal(TokenType.EndOfFile, tokens[2].Type);
+    }
+
+    [Fact]
+    public void Tokenize_CRLFLineEndings_TracksLinesAndColumnsCorrectly()
+    {
+        Lexer lexer = new Lexer("x =\r\n  42;");
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(5, tokens.Count);
+        Assert.Equal(TokenType.Identifier, tokens[0].Type);
+        Assert.Equal(1, tokens[0].Line);
+        Assert.Equal(1, tokens[0].Column);
+        Assert.Equal(TokenType.Assign, tokens[1].Type);
+        Assert.Equal(1, tokens[1].Line);
+        Assert.Equal(3, tokens[1].Column);
+        Assert.Equal(TokenType.IntegerLiteral, tokens[2].Type);
+        Assert.Equal("42", tokens[2].Value);
+        Assert.Equal(2, tokens[2].Line);
+        Assert.Equal(3, tokens[2].Column);
+        Assert.Equal(TokenType.Semicolon, tokens[3].Type);
+        Assert.Equal(2, tokens[3].Line);
+        Assert.Equal(5, tokens[3].Column);
+        Assert.Equal(TokenType.EndOfFile, tokens[4].Type);
+    }
+
+    [Fact]
+    public void FromFile_ExistingFile_ReturnsLexerWithFileContent()
+    {
+        string tempPath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempPath, "x = 42;");
+
+            Lexer lexer = Lexer.FromFile(tempPath);
+            IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+            Assert.Equal(5, tokens.Count);
+            Assert.Equal(TokenType.Identifier, tokens[0].Type);
+            Assert.Equal("x", tokens[0].Value);
+            Assert.Equal(TokenType.Assign, tokens[1].Type);
+            Assert.Equal(TokenType.IntegerLiteral, tokens[2].Type);
+            Assert.Equal("42", tokens[2].Value);
+            Assert.Equal(TokenType.Semicolon, tokens[3].Type);
+            Assert.Equal(TokenType.EndOfFile, tokens[4].Type);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+
+    [Fact]
+    public void FromFile_NonExistentFile_ThrowsFileNotFoundException()
+    {
+        string nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent_12345.ck");
+
+        Assert.Throws<FileNotFoundException>(() => Lexer.FromFile(nonExistentPath));
     }
 }

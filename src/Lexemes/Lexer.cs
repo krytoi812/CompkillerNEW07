@@ -104,12 +104,28 @@ public sealed class Lexer
             return ReadString();
         }
 
-        if (char.IsLetter(current) || current == '_')
+        if (IsAsciiLetter(current) || current == '_')
         {
             return ReadIdentifierOrKeyword();
         }
 
         return ReadOperatorOrDelimiter();
+    }
+
+    /// <summary>
+    /// Проверяет, является ли символ ASCII-буквой (A-Z или a-z).
+    /// </summary>
+    private static bool IsAsciiLetter(char c)
+    {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+    }
+
+    /// <summary>
+    /// Проверяет, является ли символ ASCII-буквой или ASCII-цифрой или подчёркиванием.
+    /// </summary>
+    private static bool IsAsciiLetterOrDigit(char c)
+    {
+        return IsAsciiLetter(c) || char.IsAsciiDigit(c);
     }
 
     /// <summary>
@@ -310,7 +326,7 @@ public sealed class Lexer
     }
 
     /// <summary>
-    /// Читает слово из букв, цифр и подчёркиваний и определяет, является ли оно
+    /// Читает слово из ASCII-букв, ASCII-цифр и подчёркиваний и определяет, является ли оно
     /// зарезервированным словом; регистр при сравнении не учитывается.
     /// </summary>
     /// <returns>Лексема ключевого слова или идентификатора.</returns>
@@ -322,7 +338,7 @@ public sealed class Lexer
         while (true)
         {
             char current = Peek(0);
-            if (!char.IsLetterOrDigit(current) && current != '_')
+            if (!IsAsciiLetterOrDigit(current) && current != '_')
             {
                 break;
             }

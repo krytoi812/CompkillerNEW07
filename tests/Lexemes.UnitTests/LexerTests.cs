@@ -121,6 +121,39 @@ public sealed class LexerTests
     }
 
     [Theory]
+    [MemberData(nameof(TypeKeywordSamples))]
+    public void Tokenize_TypeKeywordInAnyCase_ReturnsCorrectTokenType(string source, TokenType expectedType)
+    {
+        Lexer lexer = new Lexer(source);
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(expectedType, tokens[0].Type);
+        Assert.Equal(source, tokens[0].Value);
+        Assert.Equal(TokenType.EndOfFile, tokens[1].Type);
+    }
+
+    /// <summary>
+    /// Ключевые слова типов float, string, bool в разном регистре.
+    /// </summary>
+    /// <returns>Пары «входной текст — ожидаемый вид лексемы».</returns>
+    public static TheoryData<string, TokenType> TypeKeywordSamples()
+    {
+        TheoryData<string, TokenType> data = new TheoryData<string, TokenType>();
+        data.Add("float", TokenType.KeywordFloat);
+        data.Add("FLOAT", TokenType.KeywordFloat);
+        data.Add("Float", TokenType.KeywordFloat);
+        data.Add("string", TokenType.KeywordString);
+        data.Add("STRING", TokenType.KeywordString);
+        data.Add("String", TokenType.KeywordString);
+        data.Add("bool", TokenType.KeywordBool);
+        data.Add("BOOL", TokenType.KeywordBool);
+        data.Add("Bool", TokenType.KeywordBool);
+        return data;
+    }
+
+    [Theory]
     [MemberData(nameof(BooleanLiteralSamples))]
     public void Tokenize_BooleanLiteral_ReturnsBooleanLiteralToken(string source)
     {
@@ -214,6 +247,25 @@ public sealed class LexerTests
     }
 
     [Fact]
+    public void Tokenize_DotFollowedByDigit_ReturnsDotAndIntegerSeparately()
+    {
+        Lexer lexer = new Lexer(".5");
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(3, tokens.Count);
+        Assert.Equal(TokenType.Dot, tokens[0].Type);
+        Assert.Equal(".", tokens[0].Value);
+        Assert.Equal(1, tokens[0].Line);
+        Assert.Equal(1, tokens[0].Column);
+        Assert.Equal(TokenType.IntegerLiteral, tokens[1].Type);
+        Assert.Equal("5", tokens[1].Value);
+        Assert.Equal(1, tokens[1].Line);
+        Assert.Equal(2, tokens[1].Column);
+        Assert.Equal(TokenType.EndOfFile, tokens[2].Type);
+    }
+
+    [Fact]
     public void Tokenize_StringLiteral_ReturnsDecodedValue()
     {
         Lexer lexer = new Lexer("\"Hello, world!\"");
@@ -223,6 +275,19 @@ public sealed class LexerTests
         Assert.Equal(2, tokens.Count);
         Assert.Equal(TokenType.StringLiteral, tokens[0].Type);
         Assert.Equal("Hello, world!", tokens[0].Value);
+    }
+
+    [Fact]
+    public void Tokenize_EmptyStringLiteral_ReturnsEmptyString()
+    {
+        Lexer lexer = new Lexer("\"\"");
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.StringLiteral, tokens[0].Type);
+        Assert.Equal(string.Empty, tokens[0].Value);
+        Assert.Equal(TokenType.EndOfFile, tokens[1].Type);
     }
 
     [Fact]
@@ -263,6 +328,19 @@ public sealed class LexerTests
     }
 
     [Fact]
+    public void Tokenize_CommentMarkersInsideString_TreatedAsText()
+    {
+        Lexer lexer = new Lexer("\"// это не комментарий /* и это тоже */\"");
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.StringLiteral, tokens[0].Type);
+        Assert.Equal("// это не комментарий /* и это тоже */", tokens[0].Value);
+        Assert.Equal(TokenType.EndOfFile, tokens[1].Type);
+    }
+
+    [Fact]
     public void Tokenize_LineComment_SkipsCommentText()
     {
         Lexer lexer = new Lexer("a // комментарий до конца строки\nb");
@@ -300,6 +378,19 @@ public sealed class LexerTests
         Assert.Equal(TokenType.Identifier, tokens[1].Type);
         Assert.Equal("b", tokens[1].Value);
         Assert.Equal(2, tokens[1].Line);
+    }
+
+    [Fact]
+    public void Tokenize_NestedBlockCommentSyntax_EndsAtFirstClosing()
+    {
+        Lexer lexer = new Lexer("/* /* */ a");
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.Identifier, tokens[0].Type);
+        Assert.Equal("a", tokens[0].Value);
+        Assert.Equal(TokenType.EndOfFile, tokens[1].Type);
     }
 
     [Theory]
@@ -521,53 +612,6 @@ public sealed class LexerTests
         Assert.Equal(5, tokens[3].Column);
     }
 
-    [Theory]
-    [MemberData(nameof(InvalidSourceSamples))]
-    public void Tokenize_InvalidSource_ThrowsLexerException(string source)
-    {
-        Lexer lexer = new Lexer(source);
-
-        Assert.Throws<LexerException>(() => lexer.Tokenize());
-    }
-
-    /// <summary>
-    /// Негативные сценарии: неизвестные символы, одиночные &amp; и |,
-    /// незакрытая строка, неизвестное экранирование, незакрытый комментарий.
-    /// </summary>
-    /// <returns>Наборы некорректных входных текстов.</returns>
-    public static TheoryData<string> InvalidSourceSamples()
-    {
-        TheoryData<string> data = new TheoryData<string>();
-        data.Add("@");
-        data.Add("#");
-        data.Add("&");
-        data.Add("|");
-        data.Add("\"abc");
-        data.Add("\"abc\\");
-        data.Add("\"a\\qb\"");
-        data.Add("a /* незакрытый комментарий");
-        return data;
-    }
-
-    [Fact]
-    public void Tokenize_DotFollowedByDigit_ReturnsDotAndIntegerSeparately()
-    {
-        Lexer lexer = new Lexer(".5");
-
-        IReadOnlyList<Token> tokens = lexer.Tokenize();
-
-        Assert.Equal(3, tokens.Count);
-        Assert.Equal(TokenType.Dot, tokens[0].Type);
-        Assert.Equal(".", tokens[0].Value);
-        Assert.Equal(1, tokens[0].Line);
-        Assert.Equal(1, tokens[0].Column);
-        Assert.Equal(TokenType.IntegerLiteral, tokens[1].Type);
-        Assert.Equal("5", tokens[1].Value);
-        Assert.Equal(1, tokens[1].Line);
-        Assert.Equal(2, tokens[1].Column);
-        Assert.Equal(TokenType.EndOfFile, tokens[2].Type);
-    }
-
     [Fact]
     public void Tokenize_CRLFLineEndings_TracksLinesAndColumnsCorrectly()
     {
@@ -627,5 +671,33 @@ public sealed class LexerTests
         string nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent_12345.ck");
 
         Assert.Throws<FileNotFoundException>(() => Lexer.FromFile(nonExistentPath));
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidSourceSamples))]
+    public void Tokenize_InvalidSource_ThrowsLexerException(string source)
+    {
+        Lexer lexer = new Lexer(source);
+
+        Assert.Throws<LexerException>(() => lexer.Tokenize());
+    }
+
+    /// <summary>
+    /// Негативные сценарии: неизвестные символы, одиночные &amp; и |,
+    /// незакрытая строка, неизвестное экранирование, незакрытый комментарий.
+    /// </summary>
+    /// <returns>Наборы некорректных входных текстов.</returns>
+    public static TheoryData<string> InvalidSourceSamples()
+    {
+        TheoryData<string> data = new TheoryData<string>();
+        data.Add("@");
+        data.Add("#");
+        data.Add("&");
+        data.Add("|");
+        data.Add("\"abc");
+        data.Add("\"abc\\");
+        data.Add("\"a\\qb\"");
+        data.Add("a /* незакрытый комментарий");
+        return data;
     }
 }

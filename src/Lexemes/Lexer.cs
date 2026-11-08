@@ -38,6 +38,8 @@ public sealed class Lexer
         ["and"] = TokenType.KeywordAnd,
         ["or"] = TokenType.KeywordOr,
         ["not"] = TokenType.KeywordNot,
+        ["print"] = TokenType.KeywordPrint,
+        ["readint"] = TokenType.KeywordReadInt,
         ["true"] = TokenType.BooleanLiteral,
         ["false"] = TokenType.BooleanLiteral,
     };
@@ -121,7 +123,7 @@ public sealed class Lexer
     }
 
     /// <summary>
-    /// Проверяет, является ли символ ASCII-буквой или ASCII-цифрой или подчёркиванием.
+    /// Проверяет, является ли символ ASCII-буквой или ASCII-цифрой.
     /// </summary>
     private static bool IsAsciiLetterOrDigit(char c)
     {
@@ -379,6 +381,8 @@ public sealed class Lexer
                 return new Token(TokenType.Slash, "/", startLine, startColumn);
             case '%':
                 return new Token(TokenType.Percent, "%", startLine, startColumn);
+            case '^':
+                return new Token(TokenType.Caret, "^", startLine, startColumn);
             case '(':
                 return new Token(TokenType.LeftParenthesis, "(", startLine, startColumn);
             case ')':

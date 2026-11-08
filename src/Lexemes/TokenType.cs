@@ -71,6 +71,12 @@ public enum TokenType
     /// <summary>Логический оператор not (зарезервированное слово).</summary>
     KeywordNot,
 
+    /// <summary>Ключевое слово print (вывод числа).</summary>
+    KeywordPrint,
+
+    /// <summary>Имя встроенной функции readInt (чтение целого числа).</summary>
+    KeywordReadInt,
+
     /// <summary>Оператор сложения +.</summary>
     Plus,
 
@@ -85,6 +91,9 @@ public enum TokenType
 
     /// <summary>Оператор взятия остатка %.</summary>
     Percent,
+
+    /// <summary>Оператор возведения в степень ^.</summary>
+    Caret,
 
     /// <summary>Оператор присваивания =.</summary>
     Assign,
@@ -116,7 +125,7 @@ public enum TokenType
     /// <summary>Логический оператор !.</summary>
     ExclamationMark,
 
-    /// <summary>Откруглая скобка (.</summary>
+    /// <summary>Круглая скобка (.</summary>
     LeftParenthesis,
 
     /// <summary>Круглая скобка ).</summary>

@@ -47,6 +47,9 @@ public sealed class LexerTests
         data.Add("\t");
         data.Add("\r\n");
         data.Add(" \t\r\n ");
+        data.Add("\u00A0");
+        data.Add("\v");
+        data.Add("\f");
         return data;
     }
 
@@ -117,6 +120,8 @@ public sealed class LexerTests
         data.Add("and", TokenType.KeywordAnd);
         data.Add("OR", TokenType.KeywordOr);
         data.Add("not", TokenType.KeywordNot);
+        data.Add("print", TokenType.KeywordPrint);
+        data.Add("PRINT", TokenType.KeywordPrint);
         return data;
     }
 
@@ -407,7 +412,7 @@ public sealed class LexerTests
     }
 
     /// <summary>
-    /// Односимвольные операторы, включая одиночные =, !, &lt;, &gt;.
+    /// Односимвольные операторы, включая одиночные =, !, &lt;, &gt; и ^.
     /// </summary>
     /// <returns>Пары «входной текст — ожидаемый вид лексемы».</returns>
     public static TheoryData<string, TokenType> SingleCharOperatorSamples()
@@ -418,6 +423,7 @@ public sealed class LexerTests
         data.Add("*", TokenType.Star);
         data.Add("/", TokenType.Slash);
         data.Add("%", TokenType.Percent);
+        data.Add("^", TokenType.Caret);
         data.Add("=", TokenType.Assign);
         data.Add("!", TokenType.ExclamationMark);
         data.Add("<", TokenType.Less);
@@ -698,6 +704,33 @@ public sealed class LexerTests
         data.Add("\"abc\\");
         data.Add("\"a\\qb\"");
         data.Add("a /* незакрытый комментарий");
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(ReadIntSpellings))]
+    public void Tokenize_ReadIntInAnyCase_ReturnsReadIntKeyword(string source)
+    {
+        Lexer lexer = new Lexer(source);
+
+        IReadOnlyList<Token> tokens = lexer.Tokenize();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.KeywordReadInt, tokens[0].Type);
+        Assert.Equal(source, tokens[0].Value);
+        Assert.Equal(TokenType.EndOfFile, tokens[1].Type);
+    }
+
+    /// <summary>
+    /// Написания встроенной функции с разным регистром.
+    /// </summary>
+    /// <returns>Набор написаний.</returns>
+    public static TheoryData<string> ReadIntSpellings()
+    {
+        TheoryData<string> data = new TheoryData<string>();
+        data.Add("readInt");
+        data.Add("READINT");
+        data.Add("ReadInt");
         return data;
     }
 }

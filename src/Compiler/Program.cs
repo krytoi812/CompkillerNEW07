@@ -1,4 +1,4 @@
-﻿using System.Security;
+using System.Security;
 
 using Lexemes;
 using Parsing;
@@ -19,9 +19,22 @@ public static class Program
     /// <returns>Ноль при успехе, единица при любой ожидаемой ошибке выполнения.</returns>
     public static int Main(string[] args)
     {
+        return Run(args, Console.In, Console.Out, Console.Error);
+    }
+
+    /// <summary>
+    /// Выполняет программу из файла с указанными потоками ввода, вывода и ошибок.
+    /// </summary>
+    /// <param name="args">Аргументы командной строки.</param>
+    /// <param name="input">Ввод программы.</param>
+    /// <param name="output">Вывод программы.</param>
+    /// <param name="error">Поток диагностических сообщений.</param>
+    /// <returns>Ноль при успехе, единица при ошибке.</returns>
+    public static int Run(string[] args, TextReader input, TextWriter output, TextWriter error)
+    {
         if (args.Length != 1)
         {
-            Console.Error.WriteLine("Использование: интерпретатор <путь к файлу программы>");
+            error.WriteLine("Использование: интерпретатор <путь к файлу программы>");
             return 1;
         }
 
@@ -29,53 +42,53 @@ public static class Program
         {
             Lexer lexer = Lexer.FromFile(args[0]);
             IReadOnlyList<Token> tokens = lexer.Tokenize();
-            Parser parser = new Parser(tokens, Console.In, Console.Out);
+            Parser parser = new Parser(tokens, input, output);
             parser.ParseProgram();
             return 0;
         }
         catch (LexerException exception)
         {
-            Console.Error.WriteLine(exception.Message);
+            error.WriteLine(exception.Message);
             return 1;
         }
         catch (ParserException exception)
         {
-            Console.Error.WriteLine(exception.Message);
+            error.WriteLine(exception.Message);
             return 1;
         }
         catch (FileNotFoundException exception)
         {
-            Console.Error.WriteLine($"Файл не найден: {exception.FileName}");
+            error.WriteLine($"Файл не найден: {exception.FileName}");
             return 1;
         }
         catch (DirectoryNotFoundException exception)
         {
-            Console.Error.WriteLine($"Каталог не найден: {exception.Message}");
+            error.WriteLine($"Каталог не найден: {exception.Message}");
             return 1;
         }
         catch (UnauthorizedAccessException exception)
         {
-            Console.Error.WriteLine($"Нет доступа к файлу: {exception.Message}");
+            error.WriteLine($"Нет доступа к файлу: {exception.Message}");
             return 1;
         }
         catch (IOException exception)
         {
-            Console.Error.WriteLine($"Ошибка ввода-вывода: {exception.Message}");
+            error.WriteLine($"Ошибка ввода-вывода: {exception.Message}");
             return 1;
         }
         catch (ArgumentException exception)
         {
-            Console.Error.WriteLine($"Некорректный путь к файлу: {exception.Message}");
+            error.WriteLine($"Некорректный путь к файлу: {exception.Message}");
             return 1;
         }
         catch (NotSupportedException exception)
         {
-            Console.Error.WriteLine($"Неподдерживаемый путь к файлу: {exception.Message}");
+            error.WriteLine($"Неподдерживаемый путь к файлу: {exception.Message}");
             return 1;
         }
         catch (SecurityException exception)
         {
-            Console.Error.WriteLine($"Операция запрещена политикой безопасности: {exception.Message}");
+            error.WriteLine($"Операция запрещена политикой безопасности: {exception.Message}");
             return 1;
         }
     }

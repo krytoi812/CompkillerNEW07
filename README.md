@@ -1,89 +1,77 @@
-# Проект CompkillerNEW07 на C#
+# CompkillerNEW07
 
-Проект предназначен для .NET 10 (C# 14): https://dotnet.microsoft.com/en-us/download/dotnet/10.0
-
-## Клонирование проекта
-
-Клонирование без авторизации в SourceCraft:
-
-```bash
-# Клонируем репозиторий в каталог CompkillerNEW07/
-git clone https://github.com/krytoi812/CompkillerNEW07.git CompkillerNEW07
-```
-
-Если у вас есть аккаунт SourceCraft и вы настроили SSH-ключи, то можно клонировать по SSH:
-
-```bash
-# Клонируем репозиторий в каталог CompkillerNEW07/
-git clone git@github.com:krytoi812/CompkillerNEW07.git CompkillerNEW07
-```
+Учебный интерпретатор на C# 14 / .NET 10. Текущая версия вычисляет целочисленные выражения, поддерживает `print`, `readInt()`, операции `+`, `-`, `*`, `/`, `%`, `^` и скобки. Правила языка описаны в [спецификации](docs/specification.md).
 
 ## Сборка
 
-Сборка консольной утилитой dotnet из .NET SDK:
+Нужен [.NET SDK 10](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
 
-```bash
-# Сборка
+```sh
+git clone --branch iteration_2 https://github.com/krytoi812/CompkillerNEW07.git
+cd CompkillerNEW07
 dotnet build
+```
 
-# Запуск тестов
+## Запуск
+
+Из корня репозитория:
+
+```sh
+dotnet run --project src/Compiler -- examples/arithmetic.ck
+```
+
+Программа из `examples/arithmetic.ck`:
+
+```text
+main {
+    print 10 + 7 * (2 * 3 + 4) + 5 + -5;
+}
+```
+
+Ожидаемый вывод — `80` и перевод строки.
+
+```sh
+dotnet run --project src/Compiler -- examples/input.ck
+```
+
+Второй пример читает длину и ширину прямоугольника на отдельных строках. При вводе `6` и `7` выводится `42`. Ввод идёт через stdin, результаты — через stdout. При ошибке сообщение записывается в stderr, выполнение останавливается с кодом 1.
+
+## Тесты
+
+```sh
 dotnet test
 ```
 
-## Анализ покрытия кода тестами
+Приёмочные тесты можно запустить отдельно:
 
-Запустите скрипт и HTML-отчёт о покрытии появится в tests/coverage-report/index.html
-
-```bash
-scripts/run-tests-with-coverage
+```sh
+dotnet test tests/Compiler.AcceptanceTests
 ```
 
-## Структура проекта на C#
+Тесты запускают интерпретатор через `Program.Run` с временным исходным файлом и заданными потоками ввода и вывода. Проверяются результат, диагностика и код завершения. Сценарии перечислены в [списке тестов](tests/Compiler.AcceptanceTests/TESTLIST.md).
 
-Ликбез по типам файлов:
+## Покрытие
 
-1. Файл `*.slnx` (Solution) — основной файл «решения» (то есть проекта), обычно один на репозиторий с кодом
-2. Файл `*.csproj` (C# Project) — файл с описанием одного Assembly (_рус._ Сборка), компилируется в один DLL
-3. Файл `*.dll` — содержит машинный код для виртуальной машины .NET
-    - Расширение `*.dll` также используется для разделяемых библиотек в ОС Windows; в Linux аналогом являются файлы `*.so` (shared library)
+В PowerShell:
 
-Код на C# компилируется в MSIL — код виртуальной машины платформы .NET. Такой код сохраняется в файлах `.dll` для всех платформ, где работает .NET.
-
-Структура проекта была создана такими командами:
-
-```bash
-# Создаём Solution (основной проект).
-dotnet new sln
-
-# Создаём библиотеку ExampleLib в каталоге src/ и добавляем её в Solution
-dotnet new classlib -o src/ExampleLib
-dotnet sln add src/ExampleLib/
-
-# Создаём проект модульных тестов на тестовом фреймворке XUnit
-dotnet new xunit -o tests/ExampleLib.UnitTests
-dotnet sln add tests/ExampleLib.UnitTests/
-
-# Добавляем проекту тестов ссылку на проект
-dotnet add tests/ExampleLib.UnitTests/ reference src/ExampleLib/
+```powershell
+./scripts/run-tests-with-coverage.ps1
 ```
 
-Как только библиотека ExampleLib станет вам не нужна, вы должны удалить её из проекта командами:
+В Bash:
 
-```bash
-# Удаляем ExampleLib и тесты из файла решения
-dotnet sln remove src/ExampleLib/
-dotnet sln remove tests/ExampleLib.UnitTests/
-
-# Удаляем ExampleLib и тесты с диска и из системы контроля версий
-git rm -r src/ExampleLib/
-git rm -r tests/ExampleLib.UnitTests/
+```sh
+bash ./scripts/run-tests-with-coverage
 ```
 
-## Статический анализ
+Скрипты восстанавливают инструменты из `dotnet-tools.json`, запускают тесты со сбором покрытия и создают HTML-отчёт в `tests/coverage-report/index.html`. Для восстановления пакетов при первом запуске нужен доступ к NuGet. Требование к парсеру — не менее 80% line coverage; в отчёте нужно смотреть класс `Parsing.Parser`.
 
-Проект содержит подключённые статические анализаторы:
+## Модули
 
-* Статические анализаторы подключены в файле `Directory.Build.props` — система сборки MSBuild воспринимает этот файл как общие параметры сборки всего проекта;
-* В корне проекта есть файл `.editorconfig` с настройками статических анализаторов
+- `src/Lexemes` — лексический анализатор.
+- `src/Parsing` — рекурсивный спуск и вычисление выражений.
+- `src/Compiler` — консольный запуск и обработка ошибок.
+- `tests/Lexemes.UnitTests`, `tests/Parsing.UnitTests` — тесты лексера и парсера.
+- `tests/Compiler.AcceptanceTests` — приёмочные тесты всего интерпретатора.
 
-Вы можете менять файл `.editorconfig` — но только при условии, что это не снизит качество кода.
+Статические анализаторы подключены в `Directory.Build.props`, их настройки находятся в `.editorconfig`.

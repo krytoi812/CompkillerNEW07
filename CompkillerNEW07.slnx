@@ -5,6 +5,7 @@
     <Project Path="src/Parsing/Parsing.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Compiler.AcceptanceTests/Compiler.AcceptanceTests.csproj" />
     <Project Path="tests/Lexemes.UnitTests/Lexemes.UnitTests.csproj" />
     <Project Path="tests/Parsing.UnitTests/Parsing.UnitTests.csproj" />
   </Folder>

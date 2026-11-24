@@ -1,40 +1,23 @@
-using System.Globalization;
-
+using Ast;
 using Lexemes;
 
 namespace Parsing;
 
 /// <summary>
 /// Синтаксический анализатор языка CompkillerNEW07 на основе рекурсивного спуска.
-/// Интерпретация выполняется непосредственно во время разбора, без построения AST.
+/// Строит абстрактное синтаксическое дерево программы; вычисление выполняется отдельно.
 /// </summary>
 public sealed class Parser
 {
     private readonly TokenStream _tokens;
-    private readonly TextReader _input;
-    private readonly TextWriter _output;
 
     /// <summary>
-    /// Создаёт анализатор, использующий стандартный поток ввода и указанный поток вывода.
+    /// Создаёт анализатор для списка лексем программы.
     /// </summary>
     /// <param name="tokens">Список лексем программы.</param>
-    /// <param name="output">Поток вывода инструкции print.</param>
-    public Parser(IReadOnlyList<Token> tokens, TextWriter output)
-        : this(tokens, Console.In, output)
-    {
-    }
-
-    /// <summary>
-    /// Создаёт анализатор с явно заданными потоками ввода и вывода.
-    /// </summary>
-    /// <param name="tokens">Список лексем программы.</param>
-    /// <param name="input">Поток ввода для встроенной функции readInt.</param>
-    /// <param name="output">Поток вывода инструкции print.</param>
-    public Parser(IReadOnlyList<Token> tokens, TextReader input, TextWriter output)
+    public Parser(IReadOnlyList<Token> tokens)
     {
         _tokens = new TokenStream(tokens);
-        _input = input ?? throw new ArgumentNullException(nameof(input));
-        _output = output ?? throw new ArgumentNullException(nameof(output));
     }
 
     /// <summary>
@@ -43,13 +26,15 @@ public sealed class Parser
     private Token Current => _tokens.Current;
 
     /// <summary>
-    /// Разбирает программу целиком: точку входа main, блок инструкций и конец файла.
+    /// Разбирает программу целиком и возвращает корневой узел AST.
     /// </summary>
+    /// <returns>Корневой узел программы.</returns>
     /// <exception cref="ParserException">Если программа не соответствует грамматике.</exception>
-    public void ParseProgram()
+    public ProgramNode ParseProgram()
     {
         Expect(TokenType.KeywordMain);
         Expect(TokenType.LeftBrace);
+        List<Statement> statements = new List<Statement>();
         while (Current.Type != TokenType.RightBrace)
         {
             if (Current.Type == TokenType.EndOfFile)
@@ -58,36 +43,38 @@ public sealed class Parser
                     $"Ожидалась закрывающая фигурная скобка '}}' на строке {Current.Line}, колонке {Current.Column}.");
             }
 
-            ParseStatement();
+            statements.Add(ParseStatement());
         }
 
         Expect(TokenType.RightBrace);
         Expect(TokenType.EndOfFile);
+        return new ProgramNode(statements);
     }
 
     /// <summary>
     /// Разбирает инструкцию: выражение либо вывод результата через print.
     /// </summary>
-    private void ParseStatement()
+    /// <returns>Узел инструкции.</returns>
+    private Statement ParseStatement()
     {
         if (Current.Type == TokenType.KeywordPrint)
         {
             Advance();
-            long value = ParseExpression();
+            Expression expression = ParseExpression();
             Expect(TokenType.Semicolon);
-            _output.WriteLine(value);
-            return;
+            return new PrintStatement(expression);
         }
 
-        ParseExpression();
+        Expression value = ParseExpression();
         Expect(TokenType.Semicolon);
+        return new ExpressionStatement(value);
     }
 
     /// <summary>
     /// Разбирает выражение.
     /// </summary>
-    /// <returns>Вычисленное значение выражения.</returns>
-    private long ParseExpression()
+    /// <returns>Узел выражения.</returns>
+    private Expression ParseExpression()
     {
         return ParseAdditive();
     }
@@ -95,54 +82,47 @@ public sealed class Parser
     /// <summary>
     /// Разбирает сложение и вычитание с левой ассоциативностью.
     /// </summary>
-    /// <returns>Вычисленное значение.</returns>
-    private long ParseAdditive()
+    /// <returns>Узел выражения.</returns>
+    private Expression ParseAdditive()
     {
-        long result = ParseMultiplicative();
+        Expression left = ParseMultiplicative();
         while (Current.Type == TokenType.Plus || Current.Type == TokenType.Minus)
         {
-            TokenType operation = Advance().Type;
-            long right = ParseMultiplicative();
-            result = operation == TokenType.Plus
-                ? CheckedAdd(result, right)
-                : CheckedSubtract(result, right);
+            BinaryOperator operation = ToBinaryOperator(Advance().Type);
+            Expression right = ParseMultiplicative();
+            left = new BinaryExpression(operation, left, right);
         }
 
-        return result;
+        return left;
     }
 
     /// <summary>
     /// Разбирает умножение, деление и остаток с левой ассоциативностью.
     /// </summary>
-    /// <returns>Вычисленное значение.</returns>
-    private long ParseMultiplicative()
+    /// <returns>Узел выражения.</returns>
+    private Expression ParseMultiplicative()
     {
-        long result = ParseUnary();
+        Expression left = ParseUnary();
         while (Current.Type == TokenType.Star || Current.Type == TokenType.Slash || Current.Type == TokenType.Percent)
         {
-            TokenType operation = Advance().Type;
-            long right = ParseUnary();
-            result = operation switch
-            {
-                TokenType.Star => CheckedMultiply(result, right),
-                TokenType.Slash => CheckedDivide(result, right),
-                _ => CheckedRemainder(result, right),
-            };
+            BinaryOperator operation = ToBinaryOperator(Advance().Type);
+            Expression right = ParseUnary();
+            left = new BinaryExpression(operation, left, right);
         }
 
-        return result;
+        return left;
     }
 
     /// <summary>
     /// Разбирает необязательный унарный минус.
     /// </summary>
-    /// <returns>Вычисленное значение.</returns>
-    private long ParseUnary()
+    /// <returns>Узел выражения.</returns>
+    private Expression ParseUnary()
     {
         if (Current.Type == TokenType.Minus)
         {
             Advance();
-            return CheckedNegate(ParsePower());
+            return new UnaryExpression(UnaryOperator.Negate, ParsePower());
         }
 
         return ParsePower();
@@ -150,18 +130,16 @@ public sealed class Parser
 
     /// <summary>
     /// Разбирает возведение в степень с правой ассоциативностью.
-    /// Показатель разбирается как унарное выражение, поэтому отрицательный показатель
-    /// доходит до проверки в CheckedPower и вызывает ошибку выполнения.
     /// </summary>
-    /// <returns>Вычисленное значение.</returns>
-    private long ParsePower()
+    /// <returns>Узел выражения.</returns>
+    private Expression ParsePower()
     {
-        long basis = ParsePrimary();
+        Expression basis = ParsePrimary();
         if (Current.Type == TokenType.Caret)
         {
             Advance();
-            long exponent = ParseUnary();
-            return CheckedPower(basis, exponent);
+            Expression exponent = ParseUnary();
+            return new BinaryExpression(BinaryOperator.Power, basis, exponent);
         }
 
         return basis;
@@ -170,14 +148,14 @@ public sealed class Parser
     /// <summary>
     /// Разбирает целочисленный литерал, вызов readInt() или выражение в скобках.
     /// </summary>
-    /// <returns>Вычисленное значение.</returns>
+    /// <returns>Узел выражения.</returns>
     /// <exception cref="ParserException">Если встречена неожиданная лексема.</exception>
-    private long ParsePrimary()
+    private Expression ParsePrimary()
     {
         if (Current.Type == TokenType.IntegerLiteral)
         {
             string text = Advance().Value;
-            return ParseIntegerValue(text);
+            return new IntegerLiteralExpression(ParseIntegerValue(text));
         }
 
         if (Current.Type == TokenType.KeywordReadInt)
@@ -185,42 +163,19 @@ public sealed class Parser
             Advance();
             Expect(TokenType.LeftParenthesis);
             Expect(TokenType.RightParenthesis);
-            return ReadIntegerInput();
+            return new ReadIntExpression();
         }
 
         if (Current.Type == TokenType.LeftParenthesis)
         {
             Advance();
-            long result = ParseExpression();
+            Expression result = ParseExpression();
             Expect(TokenType.RightParenthesis);
             return result;
         }
 
         throw new ParserException(
             $"Неожиданная лексема '{Current.Value}' на строке {Current.Line}, колонке {Current.Column}.");
-    }
-
-    /// <summary>
-    /// Читает одну строку из входного потока и преобразует её в знаковое 64-битное целое число.
-    /// </summary>
-    /// <returns>Прочитанное целое число.</returns>
-    /// <exception cref="ParserException">Если достигнут конец ввода или строка некорректна.</exception>
-    private long ReadIntegerInput()
-    {
-        string? inputText = _input.ReadLine();
-        if (inputText is null)
-        {
-            throw new ParserException("Функция readInt(): достигнут конец входного потока.");
-        }
-
-        const NumberStyles styles = NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign;
-        if (!long.TryParse(inputText, styles, CultureInfo.InvariantCulture, out long value))
-        {
-            throw new ParserException(
-                $"Функция readInt(): '{inputText}' не является целым числом в диапазоне 64-битного типа.");
-        }
-
-        return value;
     }
 
     /// <summary>
@@ -257,7 +212,7 @@ public sealed class Parser
     /// <exception cref="ParserException">Если литерал не помещается в диапазон long.</exception>
     private static long ParseIntegerValue(string text)
     {
-        if (!long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out long value))
+        if (!long.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out long value))
         {
             throw new ParserException($"Целочисленный литерал '{text}' слишком велик.");
         }
@@ -266,142 +221,20 @@ public sealed class Parser
     }
 
     /// <summary>
-    /// Сложение с проверкой переполнения.
+    /// Сопоставляет вид лексемы оператора с видом бинарной операции AST.
     /// </summary>
-    private static long CheckedAdd(long left, long right)
+    /// <param name="type">Вид лексемы оператора.</param>
+    /// <returns>Вид бинарной операции.</returns>
+    private static BinaryOperator ToBinaryOperator(TokenType type)
     {
-        try
+        return type switch
         {
-            return checked(left + right);
-        }
-        catch (OverflowException)
-        {
-            throw new ParserException("Переполнение при сложении.");
-        }
-    }
-
-    /// <summary>
-    /// Вычитание с проверкой переполнения.
-    /// </summary>
-    private static long CheckedSubtract(long left, long right)
-    {
-        try
-        {
-            return checked(left - right);
-        }
-        catch (OverflowException)
-        {
-            throw new ParserException("Переполнение при вычитании.");
-        }
-    }
-
-    /// <summary>
-    /// Умножение с проверкой переполнения.
-    /// </summary>
-    private static long CheckedMultiply(long left, long right)
-    {
-        try
-        {
-            return checked(left * right);
-        }
-        catch (OverflowException)
-        {
-            throw new ParserException("Переполнение при умножении.");
-        }
-    }
-
-    /// <summary>
-    /// Целочисленное деление с проверкой деления на ноль и переполнения.
-    /// </summary>
-    private static long CheckedDivide(long left, long right)
-    {
-        if (right == 0)
-        {
-            throw new ParserException("Деление на ноль.");
-        }
-
-        try
-        {
-            return checked(left / right);
-        }
-        catch (OverflowException)
-        {
-            throw new ParserException("Переполнение при делении.");
-        }
-    }
-
-    /// <summary>
-    /// Остаток от деления с проверкой деления на ноль.
-    /// </summary>
-    private static long CheckedRemainder(long left, long right)
-    {
-        if (right == 0)
-        {
-            throw new ParserException("Деление на ноль.");
-        }
-
-        try
-        {
-            return checked(left % right);
-        }
-        catch (OverflowException)
-        {
-            throw new ParserException("Переполнение при взятии остатка.");
-        }
-    }
-
-    /// <summary>
-    /// Изменение знака с проверкой переполнения.
-    /// </summary>
-    private static long CheckedNegate(long value)
-    {
-        try
-        {
-            return checked(-value);
-        }
-        catch (OverflowException)
-        {
-            throw new ParserException("Переполнение при изменении знака.");
-        }
-    }
-
-    /// <summary>
-    /// Возведение в неотрицательную целую степень с проверкой переполнения.
-    /// </summary>
-    /// <exception cref="ParserException">Если показатель отрицателен или результат переполняется.</exception>
-    private static long CheckedPower(long basis, long exponent)
-    {
-        if (exponent < 0)
-        {
-            throw new ParserException("Отрицательный показатель степени недопустим для целых чисел.");
-        }
-
-        if (basis == 0)
-        {
-            return exponent == 0 ? 1 : 0;
-        }
-
-        if (basis == 1)
-        {
-            return 1;
-        }
-
-        if (basis == -1)
-        {
-            return exponent % 2 == 0 ? 1 : -1;
-        }
-
-        if (exponent > 63)
-        {
-            throw new ParserException("Переполнение при возведении в степень.");
-        }
-
-        long result = 1;
-        for (long step = 0; step < exponent; step += 1)
-        {
-            result = CheckedMultiply(result, basis);
-        }
-
-        return result;
+            TokenType.Plus => BinaryOperator.Add,
+            TokenType.Minus => BinaryOperator.Subtract,
+            TokenType.Star => BinaryOperator.Multiply,
+            TokenType.Slash => BinaryOperator.Divide,
+            TokenType.Percent => BinaryOperator.Remainder,
+            _ => BinaryOperator.Power,
+        };
     }
 }

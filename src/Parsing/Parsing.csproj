@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lexemes\Lexemes.csproj" />
+    <ProjectReference Include="..\Ast\Ast.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

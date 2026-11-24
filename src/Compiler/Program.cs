@@ -1,5 +1,7 @@
-using System.Security;
+﻿using System.Security;
 
+using Ast;
+using Execution;
 using Lexemes;
 using Parsing;
 
@@ -42,8 +44,11 @@ public static class Program
         {
             Lexer lexer = Lexer.FromFile(args[0]);
             IReadOnlyList<Token> tokens = lexer.Tokenize();
-            Parser parser = new Parser(tokens, input, output);
-            parser.ParseProgram();
+            Parser parser = new Parser(tokens);
+            ProgramNode program = parser.ParseProgram();
+            IEnvironment environment = new StreamEnvironment(input, output);
+            AstEvaluator evaluator = new AstEvaluator(environment);
+            evaluator.Evaluate(program);
             return 0;
         }
         catch (LexerException exception)
@@ -52,6 +57,11 @@ public static class Program
             return 1;
         }
         catch (ParserException exception)
+        {
+            error.WriteLine(exception.Message);
+            return 1;
+        }
+        catch (ExecutionException exception)
         {
             error.WriteLine(exception.Message);
             return 1;

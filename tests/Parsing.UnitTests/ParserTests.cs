@@ -1,5 +1,7 @@
 using System.IO;
 
+using Ast;
+using Execution;
 using Lexemes;
 using Parsing;
 using Xunit;
@@ -8,6 +10,7 @@ namespace Parsing.UnitTests;
 
 /// <summary>
 /// Интеграционные тесты парсера и интерпретатора языка CompkillerNEW07.
+/// Подготовка вынесена в общие вспомогательные методы.
 /// </summary>
 public sealed class ParserTests
 {
@@ -15,14 +18,9 @@ public sealed class ParserTests
     [MemberData(nameof(ProgramSamples))]
     public void ParseProgram_ValidSource_WritesExpectedOutput(string source, string expectedOutput)
     {
-        Lexer lexer = new Lexer(source);
-        StringWriter output = new StringWriter();
-        output.NewLine = "\n";
-        Parser parser = new Parser(lexer.Tokenize(), new StringReader(string.Empty), output);
+        string output = Execute(source, string.Empty);
 
-        parser.ParseProgram();
-
-        Assert.Equal(expectedOutput, output.ToString());
+        Assert.Equal(expectedOutput, output);
     }
 
     /// <summary>
@@ -50,21 +48,19 @@ public sealed class ParserTests
     }
 
     [Theory]
-    [MemberData(nameof(InvalidProgramSamples))]
-    public void ParseProgram_InvalidSource_ThrowsParserException(string source)
+    [MemberData(nameof(InvalidSyntaxSamples))]
+    public void ParseProgram_InvalidSyntax_ThrowsParserException(string source)
     {
-        Lexer lexer = new Lexer(source);
-        StringWriter output = new StringWriter();
-        Parser parser = new Parser(lexer.Tokenize(), new StringReader(string.Empty), output);
+        Parser parser = CreateParser(source);
 
         Assert.Throws<ParserException>(() => parser.ParseProgram());
     }
 
     /// <summary>
-    /// Негативные сценарии: синтаксические ошибки и ошибки времени выполнения.
+    /// Негативные сценарии синтаксиса.
     /// </summary>
     /// <returns>Наборы некорректных программ.</returns>
-    public static TheoryData<string> InvalidProgramSamples()
+    public static TheoryData<string> InvalidSyntaxSamples()
     {
         TheoryData<string> data = new TheoryData<string>();
         data.Add("{ print 1; }");
@@ -74,6 +70,23 @@ public sealed class ParserTests
         data.Add("main { print (1; }");
         data.Add("main { print 1;");
         data.Add("main { print 1; } }");
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidExecutionSamples))]
+    public void Evaluate_InvalidExecution_ThrowsExecutionException(string source)
+    {
+        Assert.Throws<ExecutionException>(() => Execute(source, string.Empty));
+    }
+
+    /// <summary>
+    /// Негативные сценарии времени выполнения.
+    /// </summary>
+    /// <returns>Наборы программ с ошибками выполнения.</returns>
+    public static TheoryData<string> InvalidExecutionSamples()
+    {
+        TheoryData<string> data = new TheoryData<string>();
         data.Add("main { print 1 / 0; }");
         data.Add("main { print 5 % 0; }");
         data.Add("main { print 9223372036854775807 + 1; }");
@@ -81,14 +94,10 @@ public sealed class ParserTests
     }
 
     [Fact]
-    public void ParseProgram_NegativeExponent_ThrowsNegativeExponentError()
+    public void Evaluate_NegativeExponent_ThrowsNegativeExponentError()
     {
-        Lexer lexer = new Lexer("main { print 2 ^ -1; }");
-        StringReader input = new StringReader(string.Empty);
-        StringWriter output = new StringWriter();
-        Parser parser = new Parser(lexer.Tokenize(), input, output);
-
-        ParserException exception = Assert.Throws<ParserException>(() => parser.ParseProgram());
+        ExecutionException exception = Assert.Throws<ExecutionException>(
+            () => Execute("main { print 2 ^ -1; }", string.Empty));
 
         Assert.Equal(
             "Отрицательный показатель степени недопустим для целых чисел.",
@@ -102,15 +111,9 @@ public sealed class ParserTests
         string inputText,
         string expectedOutput)
     {
-        Lexer lexer = new Lexer(source);
-        StringReader input = new StringReader(inputText);
-        StringWriter output = new StringWriter();
-        output.NewLine = "\n";
-        Parser parser = new Parser(lexer.Tokenize(), input, output);
+        string output = Execute(source, inputText);
 
-        parser.ParseProgram();
-
-        Assert.Equal(expectedOutput, output.ToString());
+        Assert.Equal(expectedOutput, output);
     }
 
     /// <summary>
@@ -134,14 +137,9 @@ public sealed class ParserTests
 
     [Theory]
     [MemberData(nameof(InvalidInputSamples))]
-    public void ParseProgram_ReadIntWithInvalidInput_ThrowsParserException(string inputText)
+    public void Evaluate_ReadIntWithInvalidInput_ThrowsExecutionException(string inputText)
     {
-        Lexer lexer = new Lexer("main { print readInt(); }");
-        StringReader input = new StringReader(inputText);
-        StringWriter output = new StringWriter();
-        Parser parser = new Parser(lexer.Tokenize(), input, output);
-
-        Assert.Throws<ParserException>(() => parser.ParseProgram());
+        Assert.Throws<ExecutionException>(() => Execute("main { print readInt(); }", inputText));
     }
 
     /// <summary>
@@ -162,15 +160,9 @@ public sealed class ParserTests
     [MemberData(nameof(ValidBoundarySamples))]
     public void ParseProgram_BoundaryExpression_WritesExpectedOutput(string source, string expectedOutput)
     {
-        Lexer lexer = new Lexer(source);
-        StringReader input = new StringReader(string.Empty);
-        StringWriter output = new StringWriter();
-        output.NewLine = "\n";
-        Parser parser = new Parser(lexer.Tokenize(), input, output);
+        string output = Execute(source, string.Empty);
 
-        parser.ParseProgram();
-
-        Assert.Equal(expectedOutput, output.ToString());
+        Assert.Equal(expectedOutput, output);
     }
 
     /// <summary>
@@ -187,14 +179,9 @@ public sealed class ParserTests
 
     [Theory]
     [MemberData(nameof(InvalidBoundarySamples))]
-    public void ParseProgram_OverflowingExpression_ThrowsParserException(string source)
+    public void Evaluate_OverflowingExpression_ThrowsExecutionException(string source)
     {
-        Lexer lexer = new Lexer(source);
-        StringReader input = new StringReader(string.Empty);
-        StringWriter output = new StringWriter();
-        Parser parser = new Parser(lexer.Tokenize(), input, output);
-
-        Assert.Throws<ParserException>(() => parser.ParseProgram());
+        Assert.Throws<ExecutionException>(() => Execute(source, string.Empty));
     }
 
     /// <summary>
@@ -210,13 +197,36 @@ public sealed class ParserTests
     }
 
     [Fact]
-    public void ParseProgram_NegatingMinimumReadIntValue_ThrowsParserException()
+    public void Evaluate_NegatingMinimumReadIntValue_ThrowsExecutionException()
     {
-        Lexer lexer = new Lexer("main { print -readInt(); }");
-        StringReader input = new StringReader("-9223372036854775808\n");
-        StringWriter output = new StringWriter();
-        Parser parser = new Parser(lexer.Tokenize(), input, output);
+        Assert.Throws<ExecutionException>(
+            () => Execute("main { print -readInt(); }", "-9223372036854775808\n"));
+    }
 
-        Assert.Throws<ParserException>(() => parser.ParseProgram());
+    /// <summary>
+    /// Общая подготовка: создаёт парсер для исходного текста.
+    /// </summary>
+    /// <param name="source">Исходный текст программы.</param>
+    /// <returns>Готовый парсер.</returns>
+    private static Parser CreateParser(string source)
+    {
+        return new Parser(new Lexer(source).Tokenize());
+    }
+
+    /// <summary>
+    /// Общая подготовка и выполнение: разбирает AST и вычисляет его, возвращая вывод.
+    /// </summary>
+    /// <param name="source">Исходный текст программы.</param>
+    /// <param name="inputText">Содержимое stdin.</param>
+    /// <returns>Текст stdout.</returns>
+    private static string Execute(string source, string inputText)
+    {
+        Parser parser = CreateParser(source);
+        ProgramNode program = parser.ParseProgram();
+        StringWriter output = new StringWriter();
+        output.NewLine = "\n";
+        AstEvaluator evaluator = new AstEvaluator(new StreamEnvironment(new StringReader(inputText), output));
+        evaluator.Evaluate(program);
+        return output.ToString();
     }
 }

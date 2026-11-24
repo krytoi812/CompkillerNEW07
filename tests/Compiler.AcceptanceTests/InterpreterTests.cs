@@ -97,7 +97,9 @@ public sealed class InterpreterTests
     }
 
     /// <summary>
-    /// Ошибки лексики, синтаксиса, арифметики и ввода; выполнение после ошибки прекращается.
+    /// Ошибки лексики, синтаксиса, арифметики и ввода.
+    /// Синтаксические ошибки обнаруживаются до начала выполнения, поэтому вывод пуст;
+    /// при ошибках времени выполнения сохраняется вывод предшествующих инструкций.
     /// </summary>
     /// <returns>Исходный текст, stdin, stdout до ошибки и часть диагностики.</returns>
     public static TheoryData<string, string, string, string> InvalidPrograms()
@@ -108,7 +110,7 @@ public sealed class InterpreterTests
         data.Add("main print 1; }", string.Empty, string.Empty, "Ожидалась лексема");
         data.Add("main { print 1 }", string.Empty, string.Empty, "Ожидалась лексема");
         data.Add("main { print (1 + 2; }", string.Empty, string.Empty, "Ожидалась лексема");
-        data.Add("main { print 1;", string.Empty, "1\n", "Ожидалась закрывающая фигурная скобка");
+        data.Add("main { print 1;", string.Empty, string.Empty, "Ожидалась закрывающая фигурная скобка");
         data.Add("main {} main {}", string.Empty, string.Empty, "Ожидалась лексема");
         data.Add("main { print ; }", string.Empty, string.Empty, "Неожиданная лексема");
         data.Add("main { var x = 1; }", string.Empty, string.Empty, "Неожиданная лексема");
@@ -138,7 +140,7 @@ public sealed class InterpreterTests
         data.Add("main { print readInt(); }", "9223372036854775808\n", string.Empty, "не является целым числом");
         data.Add("main { print readInt(); }", "1 2\n", string.Empty, "не является целым числом");
         data.Add("main { print 7; 1 / 0; print 9; }", string.Empty, "7\n", "Деление на ноль");
-        data.Add("main { print 7; print ; print 9; }", string.Empty, "7\n", "Неожиданная лексема");
+        data.Add("main { print 7; print ; print 9; }", string.Empty, string.Empty, "Неожиданная лексема");
         data.Add("main { print readInt(); print readInt(); print 9; }", "7\nabc\n", "7\n", "не является целым числом");
         return data;
     }

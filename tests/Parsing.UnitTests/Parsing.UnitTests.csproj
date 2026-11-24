@@ -21,6 +21,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Parsing\Parsing.csproj" />
     <ProjectReference Include="..\..\src\Lexemes\Lexemes.csproj" />
+    <ProjectReference Include="..\..\src\Ast\Ast.csproj" />
+    <ProjectReference Include="..\..\src\Execution\Execution.csproj" />
   </ItemGroup>
 
 </Project>

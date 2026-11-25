@@ -32,6 +32,7 @@ public sealed class Lexer
         ["struct"] = TokenType.KeywordStruct,
         ["class"] = TokenType.KeywordClass,
         ["int"] = TokenType.KeywordInt,
+        ["void"] = TokenType.KeywordVoid,
         ["float"] = TokenType.KeywordFloat,
         ["string"] = TokenType.KeywordString,
         ["bool"] = TokenType.KeywordBool,

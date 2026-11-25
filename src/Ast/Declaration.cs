@@ -2,9 +2,7 @@ namespace Ast;
 
 /// <summary>
 /// Базовый класс узлов объявлений и определений.
-/// В текущей итерации объявления не поддерживаются синтаксисом,
-/// класс предусмотрен для последующих итераций.
 /// </summary>
-public abstract class Declaration : AstNode
+public abstract class Declaration : Statement
 {
 }

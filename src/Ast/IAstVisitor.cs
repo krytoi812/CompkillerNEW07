@@ -32,4 +32,25 @@ public interface IAstVisitor
     /// <summary>Посещает бинарную операцию.</summary>
     /// <param name="node">Узел бинарной операции.</param>
     void VisitBinary(BinaryExpression node);
+
+    /// <summary>Посещает объявление переменной.</summary>
+    void VisitVariableDeclaration(VariableDeclaration node);
+
+    /// <summary>Посещает чтение переменной.</summary>
+    void VisitVariable(VariableExpression node);
+
+    /// <summary>Посещает присваивание.</summary>
+    void VisitAssignment(AssignmentExpression node);
+
+    /// <summary>Посещает блок инструкций.</summary>
+    void VisitBlock(BlockStatement node);
+
+    /// <summary>Посещает определение функции.</summary>
+    void VisitFunctionDeclaration(FunctionDeclaration node);
+
+    /// <summary>Посещает вызов функции.</summary>
+    void VisitCall(CallExpression node);
+
+    /// <summary>Посещает возврат из функции.</summary>
+    void VisitReturn(ReturnStatement node);
 }

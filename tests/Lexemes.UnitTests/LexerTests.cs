@@ -117,6 +117,9 @@ public sealed class LexerTests
         data.Add("var", TokenType.KeywordVar);
         data.Add("STRUCT", TokenType.KeywordStruct);
         data.Add("class", TokenType.KeywordClass);
+        data.Add("void", TokenType.KeywordVoid);
+        data.Add("VOID", TokenType.KeywordVoid);
+        data.Add("Void", TokenType.KeywordVoid);
         data.Add("and", TokenType.KeywordAnd);
         data.Add("OR", TokenType.KeywordOr);
         data.Add("not", TokenType.KeywordNot);

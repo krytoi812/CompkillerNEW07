@@ -32,7 +32,52 @@ public sealed class Parser
     /// <exception cref="ParserException">Если программа не соответствует грамматике.</exception>
     public ProgramNode ParseProgram()
     {
+        List<FunctionDeclaration> functions = new List<FunctionDeclaration>();
+        while (Current.Type == TokenType.KeywordInt || Current.Type == TokenType.KeywordVoid)
+        {
+            functions.Add(ParseFunctionDeclaration());
+        }
+
         Expect(TokenType.KeywordMain);
+        BlockStatement body = ParseBlock();
+        Expect(TokenType.EndOfFile);
+        return new ProgramNode(functions, body.Statements);
+    }
+
+    private FunctionDeclaration ParseFunctionDeclaration()
+    {
+        FunctionReturnType returnType = Advance().Type == TokenType.KeywordInt
+            ? FunctionReturnType.Int
+            : FunctionReturnType.Void;
+        string name = Expect(TokenType.Identifier).Value;
+        Expect(TokenType.LeftParenthesis);
+        IReadOnlyList<string> parameters = Current.Type == TokenType.RightParenthesis
+            ? Array.Empty<string>()
+            : ParseParameterList();
+        Expect(TokenType.RightParenthesis);
+        return new FunctionDeclaration(name, returnType, parameters, ParseBlock());
+    }
+
+    private IReadOnlyList<string> ParseParameterList()
+    {
+        List<string> parameters = new List<string> { ParseParameter() };
+        while (Current.Type == TokenType.Comma)
+        {
+            Advance();
+            parameters.Add(ParseParameter());
+        }
+
+        return parameters;
+    }
+
+    private string ParseParameter()
+    {
+        Expect(TokenType.KeywordInt);
+        return Expect(TokenType.Identifier).Value;
+    }
+
+    private BlockStatement ParseBlock()
+    {
         Expect(TokenType.LeftBrace);
         List<Statement> statements = new List<Statement>();
         while (Current.Type != TokenType.RightBrace)
@@ -47,8 +92,7 @@ public sealed class Parser
         }
 
         Expect(TokenType.RightBrace);
-        Expect(TokenType.EndOfFile);
-        return new ProgramNode(statements);
+        return new BlockStatement(statements);
     }
 
     /// <summary>
@@ -57,6 +101,24 @@ public sealed class Parser
     /// <returns>Узел инструкции.</returns>
     private Statement ParseStatement()
     {
+        if (Current.Type == TokenType.KeywordInt)
+        {
+            return ParseVariableDeclaration();
+        }
+
+        if (Current.Type == TokenType.LeftBrace)
+        {
+            return ParseBlock();
+        }
+
+        if (Current.Type == TokenType.KeywordReturn)
+        {
+            Advance();
+            Expression? returnValue = Current.Type == TokenType.Semicolon ? null : ParseExpression();
+            Expect(TokenType.Semicolon);
+            return new ReturnStatement(returnValue);
+        }
+
         if (Current.Type == TokenType.KeywordPrint)
         {
             Advance();
@@ -70,13 +132,40 @@ public sealed class Parser
         return new ExpressionStatement(value);
     }
 
+    private VariableDeclaration ParseVariableDeclaration()
+    {
+        Expect(TokenType.KeywordInt);
+        string name = Expect(TokenType.Identifier).Value;
+        Expect(TokenType.Assign);
+        Expression initializer = ParseExpression();
+        Expect(TokenType.Semicolon);
+        return new VariableDeclaration(name, initializer);
+    }
+
     /// <summary>
     /// Разбирает выражение.
     /// </summary>
     /// <returns>Узел выражения.</returns>
     private Expression ParseExpression()
     {
-        return ParseAdditive();
+        return ParseAssignment();
+    }
+
+    private Expression ParseAssignment()
+    {
+        Expression left = ParseAdditive();
+        if (Current.Type != TokenType.Assign)
+        {
+            return left;
+        }
+
+        Advance();
+        if (left is not VariableExpression variable)
+        {
+            throw new ParserException("Левая часть присваивания должна обозначать переменную.");
+        }
+
+        return new AssignmentExpression(variable.Name, ParseAssignment());
     }
 
     /// <summary>
@@ -158,6 +247,14 @@ public sealed class Parser
             return new IntegerLiteralExpression(ParseIntegerValue(text));
         }
 
+        if (Current.Type == TokenType.Identifier)
+        {
+            string name = Advance().Value;
+            return Current.Type == TokenType.LeftParenthesis
+                ? new CallExpression(name, ParseCallArguments())
+                : new VariableExpression(name);
+        }
+
         if (Current.Type == TokenType.KeywordReadInt)
         {
             Advance();
@@ -176,6 +273,28 @@ public sealed class Parser
 
         throw new ParserException(
             $"Неожиданная лексема '{Current.Value}' на строке {Current.Line}, колонке {Current.Column}.");
+    }
+
+    private IReadOnlyList<Expression> ParseCallArguments()
+    {
+        Expect(TokenType.LeftParenthesis);
+        IReadOnlyList<Expression> arguments = Current.Type == TokenType.RightParenthesis
+            ? Array.Empty<Expression>()
+            : ParseArgumentList();
+        Expect(TokenType.RightParenthesis);
+        return arguments;
+    }
+
+    private IReadOnlyList<Expression> ParseArgumentList()
+    {
+        List<Expression> arguments = new List<Expression> { ParseExpression() };
+        while (Current.Type == TokenType.Comma)
+        {
+            Advance();
+            arguments.Add(ParseExpression());
+        }
+
+        return arguments;
     }
 
     /// <summary>
@@ -234,7 +353,8 @@ public sealed class Parser
             TokenType.Star => BinaryOperator.Multiply,
             TokenType.Slash => BinaryOperator.Divide,
             TokenType.Percent => BinaryOperator.Remainder,
-            _ => BinaryOperator.Power,
+            TokenType.Caret => BinaryOperator.Power,
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Неизвестный бинарный оператор."),
         };
     }
 }

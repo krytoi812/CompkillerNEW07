@@ -19,4 +19,9 @@
     <ProjectReference Include="..\..\src\Compiler\Compiler.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\examples\rectangle.ck" Link="Programs\rectangle.ck" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\examples\order.ck" Link="Programs\order.ck" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

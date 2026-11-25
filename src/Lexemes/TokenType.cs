@@ -53,6 +53,9 @@ public enum TokenType
     /// <summary>Ключевое слово int (тип целых чисел).</summary>
     KeywordInt,
 
+    /// <summary>Отсутствие возвращаемого значения функции.</summary>
+    KeywordVoid,
+
     /// <summary>Ключевое слово float (тип вещественных чисел).</summary>
     KeywordFloat,
 

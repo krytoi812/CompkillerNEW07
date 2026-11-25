@@ -114,7 +114,7 @@ public sealed class InterpreterTests
         data.Add("main {} main {}", string.Empty, string.Empty, "Ожидалась лексема");
         data.Add("main { print ; }", string.Empty, string.Empty, "Неожиданная лексема");
         data.Add("main { var x = 1; }", string.Empty, string.Empty, "Неожиданная лексема");
-        data.Add("main { print x; }", string.Empty, string.Empty, "Неожиданная лексема");
+        data.Add("main { print x; }", string.Empty, string.Empty, "Неизвестная переменная");
         data.Add("main { print 1.5; }", string.Empty, string.Empty, "Неожиданная лексема");
         data.Add("main { print \"текст\"; }", string.Empty, string.Empty, "Неожиданная лексема");
         data.Add("main { print true; }", string.Empty, string.Empty, "Неожиданная лексема");
